@@ -40,6 +40,11 @@ final class WorkoutSet {
     var notes: String?
     var completedAt: Date?
     
+    // Cardio metrics (for imported workouts)
+    var duration: TimeInterval? // Duration in seconds
+    var distance: Double? // Distance in meters
+    var calories: Double? // Calories burned
+    
     var exercise: Exercise?
     
     init(

@@ -17,6 +17,8 @@ struct ProfileView: View {
     @AppStorage("userWeight") private var userWeight = ""
     @AppStorage("anthropic_api_key") private var apiKey = ""
     
+    @State private var showingImport = false
+    
     var body: some View {
         List {
             // Profile section
@@ -70,6 +72,15 @@ struct ProfileView: View {
                 }
             }
             
+            // Import section
+            Section("Import Data") {
+                Button {
+                    showingImport = true
+                } label: {
+                    Label("Import Workouts", systemImage: "square.and.arrow.down")
+                }
+            }
+            
             // App section
             Section("App") {
                 NavigationLink {
@@ -103,6 +114,9 @@ struct ProfileView: View {
             }
         }
         .navigationTitle("Profile")
+        .sheet(isPresented: $showingImport) {
+            ImportView()
+        }
     }
     
     private var formattedTotalVolume: String {
