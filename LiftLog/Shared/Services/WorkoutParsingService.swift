@@ -8,17 +8,17 @@
 import Foundation
 
 /// Parsed workout data from natural language input
-struct ParsedWorkoutData: Codable {
+struct ParsedWorkoutData: Codable, Sendable {
     var exercises: [ParsedExercise]
     var workoutName: String?
     var notes: String?
     
-    struct ParsedExercise: Codable {
+    struct ParsedExercise: Codable, Sendable {
         var name: String
         var sets: [ParsedSet]
         var notes: String?
         
-        struct ParsedSet: Codable {
+        struct ParsedSet: Codable, Sendable {
             var weight: Double? // nil = bodyweight
             var reps: Int
             var setType: String? // "warmup", "working", "dropset", etc.
@@ -145,8 +145,8 @@ actor WorkoutParsingService {
 
 // MARK: - Fallback Parser
 
-struct FallbackWorkoutParser {
-    static func parse(_ text: String) -> ParsedWorkoutData {
+enum FallbackWorkoutParser {
+    nonisolated static func parse(_ text: String) -> ParsedWorkoutData {
         var exercises: [ParsedWorkoutData.ParsedExercise] = []
         
         // Split by common delimiters

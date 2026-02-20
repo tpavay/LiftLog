@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct WorkoutDetailView: View {
     @Environment(\.colorScheme) private var colorScheme

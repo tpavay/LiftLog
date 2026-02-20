@@ -95,10 +95,6 @@ final class Workout {
     // MARK: - Static Methods
     
     static func generateDefaultName(for date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEEE"
-        let dayName = formatter.string(from: date)
-        
         let hour = Calendar.current.component(.hour, from: date)
         let timeOfDay: String
         switch hour {
