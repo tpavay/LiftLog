@@ -15,7 +15,6 @@ struct ProfileView: View {
     
     @AppStorage("userName") private var userName = ""
     @AppStorage("userWeight") private var userWeight = ""
-    @AppStorage("anthropic_api_key") private var apiKey = ""
     
     @State private var showingImport = false
     
@@ -154,16 +153,59 @@ private struct StatRow: View {
 }
 
 struct APIKeySettingsView: View {
-    @AppStorage("anthropic_api_key") private var apiKey = ""
+    @State private var apiKey: String = ""
+    @State private var showingSaveConfirmation = false
+    @State private var hasChanges = false
+    
+    private var isValidKey: Bool {
+        apiKey.isEmpty || KeychainService.isValidAnthropicKey(apiKey)
+    }
     
     var body: some View {
         Form {
             Section {
                 SecureField("Anthropic API Key", text: $apiKey)
+                    .onChange(of: apiKey) { _, _ in
+                        hasChanges = true
+                    }
+                
+                // Validation feedback
+                if !apiKey.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: isValidKey ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
+                            .foregroundStyle(isValidKey ? .green : .orange)
+                        Text(isValidKey ? "Valid format" : "Should start with sk-ant-")
+                            .font(.system(size: 12))
+                            .foregroundStyle(isValidKey ? .green : .orange)
+                    }
+                }
             } header: {
                 Text("API Key")
             } footer: {
                 Text("Used for AI-powered workout parsing. Get your key from console.anthropic.com")
+            }
+            
+            Section {
+                Button {
+                    saveApiKey()
+                } label: {
+                    HStack {
+                        Image(systemName: "lock.shield.fill")
+                        Text("Save to Keychain")
+                    }
+                }
+                .disabled(!hasChanges || (!apiKey.isEmpty && !isValidKey))
+                
+                if KeychainService.exists(key: .anthropicApiKey) {
+                    Button(role: .destructive) {
+                        deleteApiKey()
+                    } label: {
+                        HStack {
+                            Image(systemName: "trash")
+                            Text("Remove API Key")
+                        }
+                    }
+                }
             }
             
             Section {
@@ -175,9 +217,55 @@ struct APIKeySettingsView: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "lock.shield.fill")
+                            .foregroundStyle(.green)
+                        Text("Security")
+                            .font(.headline)
+                    }
+                    
+                    Text("Your API key is stored in the iOS Keychain, encrypted and protected by your device passcode.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .navigationTitle("AI Settings")
+        .onAppear {
+            // Load existing key (masked)
+            if let existingKey = KeychainService.get(key: .anthropicApiKey) {
+                // Show masked version
+                apiKey = existingKey
+            }
+            hasChanges = false
+        }
+        .alert("Saved", isPresented: $showingSaveConfirmation) {
+            Button("OK") { }
+        } message: {
+            Text("API key saved securely to Keychain")
+        }
+    }
+    
+    private func saveApiKey() {
+        do {
+            if apiKey.isEmpty {
+                try KeychainService.delete(key: .anthropicApiKey)
+            } else {
+                try KeychainService.save(key: .anthropicApiKey, value: apiKey)
+            }
+            hasChanges = false
+            showingSaveConfirmation = true
+        } catch {
+            // Handle error
+        }
+    }
+    
+    private func deleteApiKey() {
+        try? KeychainService.delete(key: .anthropicApiKey)
+        apiKey = ""
+        hasChanges = false
     }
 }
 

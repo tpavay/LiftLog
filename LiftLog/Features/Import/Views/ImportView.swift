@@ -21,8 +21,7 @@ struct ImportView: View {
     @State private var showingResult = false
     @State private var importResult: ImportResult?
     @State private var errorMessage: String?
-    
-    @AppStorage("hevy_api_key") private var hevyApiKey = ""
+    @State private var hevyApiKey: String = ""
     
     enum ImportSource: Identifiable {
         case hevy, appleHealth, csv
@@ -151,6 +150,10 @@ struct ImportView: View {
                 Button("OK") { errorMessage = nil }
             } message: {
                 Text(errorMessage ?? "Unknown error")
+            }
+            .onAppear {
+                // Load API key from Keychain
+                hevyApiKey = KeychainService.get(key: .hevyApiKey) ?? ""
             }
         }
     }
@@ -331,6 +334,11 @@ struct HevySetupSheet: View {
     
     @Environment(\.dismiss) private var dismiss
     @State private var inputKey = ""
+    @State private var validationError: String?
+    
+    private var isValidKey: Bool {
+        KeychainService.isValidHevyKey(inputKey)
+    }
     
     var body: some View {
         NavigationStack {
@@ -382,6 +390,27 @@ struct HevySetupSheet: View {
                         .textFieldStyle(.roundedBorder)
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.never)
+                    
+                    // Validation feedback
+                    if !inputKey.isEmpty {
+                        HStack(spacing: 4) {
+                            Image(systemName: isValidKey ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
+                                .foregroundStyle(isValidKey ? .green : .red)
+                            Text(isValidKey ? "Valid format" : "Invalid format (should be UUID)")
+                                .font(.system(size: 12))
+                                .foregroundStyle(isValidKey ? .green : .red)
+                        }
+                    }
+                }
+                .padding(.horizontal, 20)
+                
+                // Security note
+                HStack(spacing: 8) {
+                    Image(systemName: "lock.shield.fill")
+                        .foregroundStyle(.green)
+                    Text("Stored securely in iOS Keychain")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
                 }
                 .padding(.horizontal, 20)
                 
@@ -389,9 +418,7 @@ struct HevySetupSheet: View {
                 
                 // Connect button
                 Button {
-                    apiKey = inputKey
-                    dismiss()
-                    onComplete()
+                    saveAndConnect()
                 } label: {
                     Text("Connect & Import")
                         .font(.system(size: 17, weight: .semibold))
@@ -400,10 +427,10 @@ struct HevySetupSheet: View {
                         .padding(.vertical, 16)
                         .background(
                             RoundedRectangle(cornerRadius: 14)
-                                .fill(inputKey.isEmpty ? Color.gray : Color.orange)
+                                .fill(!isValidKey ? Color.gray : Color.orange)
                         )
                 }
-                .disabled(inputKey.isEmpty)
+                .disabled(!isValidKey)
                 .padding(.horizontal, 20)
                 .padding(.bottom, 40)
             }
@@ -416,6 +443,17 @@ struct HevySetupSheet: View {
                     }
                 }
             }
+        }
+    }
+    
+    private func saveAndConnect() {
+        do {
+            try KeychainService.save(key: .hevyApiKey, value: inputKey)
+            apiKey = inputKey
+            dismiss()
+            onComplete()
+        } catch {
+            validationError = error.localizedDescription
         }
     }
     

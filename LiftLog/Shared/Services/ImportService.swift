@@ -69,6 +69,7 @@ actor HevyImportService {
     
     private func fetchPage(page: Int, apiKey: String) async throws -> HevyPageResponse {
         var request = URLRequest(url: URL(string: "\(baseURL)/workouts?page=\(page)&pageSize=10")!)
+        request.timeoutInterval = 30 // 30 second timeout
         request.addValue(apiKey, forHTTPHeaderField: "api-key")
         
         let (data, response) = try await URLSession.shared.data(for: request)

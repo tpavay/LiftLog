@@ -33,8 +33,12 @@ actor WorkoutParsingService {
     private let model = "claude-3-haiku-20240307"
     
     private var apiKey: String? {
-        UserDefaults.standard.string(forKey: "anthropic_api_key") ??
-        ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"]
+        // First check Keychain (secure storage)
+        if let keychainKey = KeychainService.get(key: .anthropicApiKey) {
+            return keychainKey
+        }
+        // Fallback to environment variable for development
+        return ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"]
     }
     
     // MARK: - Parse Workout
@@ -97,6 +101,7 @@ actor WorkoutParsingService {
     private func callAPI(prompt: String, apiKey: String) async throws -> String {
         var request = URLRequest(url: URL(string: apiEndpoint)!)
         request.httpMethod = "POST"
+        request.timeoutInterval = 30 // 30 second timeout
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
         request.addValue(apiKey, forHTTPHeaderField: "x-api-key")
         request.addValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
