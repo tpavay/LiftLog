@@ -22,6 +22,9 @@ struct ChatHomeView: View {
     @State private var showConfirmation = false
     @State private var showError = false
     @State private var errorMessage = ""
+    @State private var isEditing = false
+    @State private var isRecording = false
+    @FocusState private var isInputFocused: Bool
     
     private let examplePhrases = [
         "Bench press 135x10, 185x8, 205x6...",
@@ -91,18 +94,27 @@ struct ChatHomeView: View {
     
     private var inputCard: some View {
         VStack(spacing: 16) {
-            // Animated placeholder or input
-            if userInput.isEmpty {
-                TypewriterText(phrases: examplePhrases)
-                    .frame(minHeight: 60)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 16)
-            } else {
+            // Text input area - always show TextField, use overlay for placeholder animation
+            ZStack(alignment: .topLeading) {
+                // Actual text field (always present)
                 TextField("Describe your workout...", text: $userInput, axis: .vertical)
                     .font(.system(size: 17))
                     .lineLimit(3...6)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 16)
+                    .focused($isInputFocused)
+                    .opacity(userInput.isEmpty && !isInputFocused ? 0 : 1)
+                
+                // Animated placeholder (only when empty and not focused)
+                if userInput.isEmpty && !isInputFocused {
+                    TypewriterText(phrases: examplePhrases)
+                        .allowsHitTesting(false) // Pass taps through to TextField
+                }
+            }
+            .frame(minHeight: 60, alignment: .topLeading)
+            .padding(.horizontal, 16)
+            .padding(.top, 16)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                isInputFocused = true
             }
             
             Divider()
@@ -112,20 +124,20 @@ struct ChatHomeView: View {
             HStack(spacing: 12) {
                 // Voice button
                 Button {
-                    // TODO: Voice input
+                    toggleVoiceInput()
                 } label: {
                     HStack(spacing: 6) {
-                        Image(systemName: "mic.fill")
+                        Image(systemName: isRecording ? "stop.fill" : "mic.fill")
                             .font(.system(size: 18))
-                        Text("Voice")
+                        Text(isRecording ? "Stop" : "Voice")
                             .font(.system(size: 15, weight: .semibold))
                     }
-                    .foregroundStyle(.red)
+                    .foregroundStyle(isRecording ? .white : .red)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
                     .background(
                         RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.red.opacity(0.15))
+                            .fill(isRecording ? Color.red : Color.red.opacity(0.15))
                     )
                 }
                 
@@ -164,8 +176,34 @@ struct ChatHomeView: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 20)
-                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                .stroke(isInputFocused ? Color.red.opacity(0.5) : Color.gray.opacity(0.2), lineWidth: isInputFocused ? 2 : 1)
         )
+        .animation(.easeInOut(duration: 0.2), value: isInputFocused)
+    }
+    
+    // MARK: - Voice Input
+    
+    private func toggleVoiceInput() {
+        if isRecording {
+            VoiceInputManager.shared.stopRecording()
+            isRecording = false
+        } else {
+            isRecording = true
+            VoiceInputManager.shared.startRecording { result in
+                DispatchQueue.main.async {
+                    switch result {
+                    case .success(let transcript):
+                        if !transcript.isEmpty {
+                            userInput = transcript
+                        }
+                    case .failure(let error):
+                        errorMessage = error.localizedDescription
+                        showError = true
+                    }
+                    isRecording = false
+                }
+            }
+        }
     }
     
     // MARK: - Quick Actions
